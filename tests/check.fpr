@@ -1,0 +1,20 @@
+App = use "../src/logbook".
+Store = use "std/store".
+Live = use "std/live".
+List = use "std/list".
+Option = use "std/option".
+check why yes = if yes then print "PASS {why}" else error why.
+main =
+  path = case Sys.args Unit of [p] -> p | _ -> error "expected scratch store path";
+  store = App.openStore path;
+  _ = check "trim and parse tags" (App.tagList "work, test , ,sol" == ["work","test","sol"]);
+  _ = check "legacy journal parser" (App.tagsOf "work,sol|hello" == ["work","sol"] and App.textOf "work,sol|hello" == "hello");
+  entry = {id=1,at=123,text="Standalone extraction",tags=["sol","test"]};
+  _ = Store.put entry store;
+  _ = check "store roundtrip" (Store.get 1 store == Option.Some entry and Store.count store == 1);
+  _ = check "text and tag search" (App.matches "extraction" entry and App.matches "sol" entry and not (App.matches "missing" entry));
+  (model,commands) = App.post store 7 ["new"] "A new entry" App.init;
+  _ = check "post reserves an ID and produces commands" (model.nextId == 2 and List.length commands == 2);
+  _ = Store.remove 1 store;
+  _ = check "delete from store" (Store.count store == 0);
+  print "logbook checks passed".
